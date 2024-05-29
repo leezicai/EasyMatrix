@@ -231,7 +231,7 @@ void btnInit(){
   button2.attachLongPressStart(btn2LongClick);
   button2.setPressMs(1200); //设置长按时间
   button3.attachLongPressStart(btn3LongClick);
-  button3.setPressMs(1500); //设置长按时间
+  button3.setPressMs(1200); //设置长按时间
 }
 // 监控按键
 void watchBtn(){
@@ -273,6 +273,8 @@ void btn1click(){
       }else if(rhythmPage == RHYTHM_MODEL4){
         rhythmPage = RHYTHM_MODEL1;
       }
+      // 保存设置
+      recordExtensionPage();
       break;
     case ANIM:
       if(animPage == ANIM_MODEL1){
@@ -320,6 +322,7 @@ void btn1click(){
       }
       break;
     case BRIGHT:
+      if(brightModel == BRIGHT_MODEL_AUTO) return;
       if(brightness >= 145){
         Serial.println("已达最大亮度");
         return;
@@ -366,6 +369,8 @@ void btn2click(){
       }else if(rhythmPage == RHYTHM_MODEL4){
         rhythmPage = RHYTHM_MODEL3;
       }
+      // 保存设置
+      recordExtensionPage();
       break;
     case ANIM:
       if(animPage == ANIM_MODEL1){
@@ -413,6 +418,7 @@ void btn2click(){
       }
       break;
     case BRIGHT:
+      if(brightModel == BRIGHT_MODEL_AUTO) return;
       if(brightness <= 5){
         Serial.println("已达最小亮度");
         return;
@@ -577,7 +583,7 @@ void btn3LongClick(){
   if(currentPage == SETTING){
     return;
   }
-  if(currentPage == CLOCK){ // 时钟页面长按，关闭/开启闹钟
+  if(currentPage == CLOCK){ // 闹钟页面长按，关闭/开启闹钟
     if(clockChoosed == CLOCK_BELL){
       if(playingMusic){
         // 停止演奏
@@ -593,11 +599,36 @@ void btn3LongClick(){
     clockOpen = !clockOpen;
     drawClock();
     recordClockPage();
+  }else if(currentPage == RHYTHM){ // 节奏灯页面长按，切换频段模式
+    if(rhythmBandsModel == RHYTHM_BANDS_MODEL1){
+      rhythmBandsModel = RHYTHM_BANDS_MODEL2;
+    }else{
+      rhythmBandsModel = RHYTHM_BANDS_MODEL1;
+    }
+    // 将相关数组重置为0
+    memset(peak,0,NUM_BANDS);
+    memset(oldBarHeights,0,NUM_BANDS);
+    // 保存新模式
+    recordExtensionPage();
+  }else if(currentPage == BRIGHT){ // 亮度页面长按，切换亮度调节模式
+    if(brightModel == BRIGHT_MODEL_MANUAL){
+      brightModel = BRIGHT_MODEL_AUTO;
+      // 重置采样值
+      clearBrightSampling();
+    }else{
+      brightModel = BRIGHT_MODEL_MANUAL;
+    }
+    // 保存新模式
+    recordExtensionPage();
+    // 重新读取NVS中的亮度值
+    getBrightness();
+    // 刷新页面
+    drawBright();
   }else{ // 其他页面长按，重启并配网
     Serial.println("重启并配网");
     setApConfigWhenStart(true);
     ESP.restart();
-  } 
+  }
 }
 ///////////////////////////////////////////////////////////////
 

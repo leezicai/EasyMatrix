@@ -21,6 +21,7 @@
 #define BTN3                  8 // 按钮3
 #define BUZZER                0 // 蜂鸣器
 #define AUDIO_IN_PIN          1 // 拾音器
+#define LIGHT_ADC             2 // 光敏电阻ADC引脚
 #define BRIGHTNESS            45 // 默认亮度
 #define MATRIX_SIDE           8 //每个矩阵的边长
 #define MATRIX_WIDTH          32 //矩阵总宽度
@@ -39,6 +40,7 @@
 #define ONE_DAY_SECONDS       24 * 60 * 60 // 一天的秒数
 #define ANIM_INTERVAL         200 // 时钟页面每帧动画间隔（ms）
 #define TIME_CHECK_INTERVAL   18000 // NTP对时间隔（s）, 18000秒即为5小时
+#define BRIGHT_SAMPLING_TIMES 1 // 每轮亮度采样次数
 
 // 时钟页面下的小页面
 const int TIME_H_M_S = 1;
@@ -49,6 +51,9 @@ const int RHYTHM_MODEL1 = 1;
 const int RHYTHM_MODEL2 = 2;
 const int RHYTHM_MODEL3 = 3;
 const int RHYTHM_MODEL4 = 4;
+// 节奏灯频率模式
+const int RHYTHM_BANDS_MODEL1 = 1;
+const int RHYTHM_BANDS_MODEL2 = 2;
 // 动画页面下的小页面
 const int ANIM_MODEL1 = 1;
 const int ANIM_MODEL2 = 2;
@@ -57,6 +62,9 @@ const int ANIM_MODEL3 = 3;
 const int CLOCK_H = 1;
 const int CLOCK_M = 2;
 const int CLOCK_BELL = 3;
+// 亮度模式
+const int BRIGHT_MODEL_MANUAL = 1;
+const int BRIGHT_MODEL_AUTO = 2;
 
 // 定义页面枚举 SETTING-配网页面  TIME-时间页面  RHYTHM-节奏灯页面  ANIM-动画页面  CLOCK-闹钟设置页面  BRIGHT-亮度调节
 enum CurrentPage{

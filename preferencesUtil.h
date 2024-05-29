@@ -4,6 +4,7 @@
 void getInfos();
 void recordInfos(String ssid,String pass,int r,int g,int b,bool apConfig);
 void recordBrightness();
+void getBrightness();
 void setApConfigWhenStart(bool apConfig);
 void recordExtensionPage();
 void recordClockPage();

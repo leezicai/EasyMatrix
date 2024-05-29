@@ -23,6 +23,10 @@ int clockChoosed = CLOCK_H; // 默认选中时
 int timePage;
 int rhythmPage;
 int animPage;
+// 亮度页面
+int brightModel; // 亮度调节模式
+int brightSamplingTime; // 亮度采样次数
+int brightSamplingValue; // 采样值
 // 动画页相关
 int matrixArray[13][32]; // 点阵二维数组，用来记录一些数据
 int animInterval1 = 60; // 动画1每一帧动画间隔
@@ -32,7 +36,8 @@ int hackAnimProbability = 8; // 骇客动画产生的概率，数值越大，新
 int lightedCount = 0; // 随机点动画已点亮的个数
 bool increasing = true; // 随机点动画正在增加状态 
 unsigned long animTime; // 记录上一次动画的时间
-// 节奏灯相关
+// 节奏灯页面
+int rhythmBandsModel; // 节奏灯频段模式
 uint16_t hsv2rgb(uint16_t hue, uint8_t saturation, uint8_t value);
 unsigned int sampling_period_us; //采样周期
 byte peak[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -52,6 +57,28 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(MATRIX_SIDE, MATRIX_SIDE, MATRIX_
 NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_ROWS + NEO_MATRIX_PROGRESSIVE + 
 NEO_TILE_TOP + NEO_TILE_LEFT + NEO_TILE_ROWS + NEO_TILE_PROGRESSIVE, NEO_GRB + NEO_KHZ800);
 
+// 重置亮度采样值
+void clearBrightSampling(){
+  brightSamplingTime = 0;
+  brightSamplingValue = 0;
+}
+
+// 根据亮度采样值和次数，计算自动亮度
+void calculateBrightnessValue(){
+  int val = brightSamplingValue / brightSamplingTime; // 三次采样平均值
+  // Serial.println(val);
+  brightness = map(val, 0, 4095, 0, 65);
+  // if(val >= 3000){
+  //   brightness = 65;
+  // }else if(val >= 2000){
+  //   brightness = 45;
+  // }else{
+  //   brightness = map(val, 0, 1999, 0, 44);
+  // }
+  // Serial.print("亮度：");
+  // Serial.println(brightness);
+}
+
 // 初始化矩阵
 void initMatrix(){
   matrix.begin();
@@ -61,6 +88,13 @@ void initMatrix(){
   sampling_period_us = round(1000000 * (1.0 / SAMPLING_FREQ));
   // 初始化拾音器
   pinMode(AUDIO_IN_PIN, INPUT);
+  // 采样一次亮度值，确定初始亮度
+  if(brightModel == BRIGHT_MODEL_AUTO){
+    brightSamplingValue+=analogRead(LIGHT_ADC);
+    brightSamplingTime++;
+    calculateBrightnessValue();
+    clearBrightSampling();
+  }
 }
 
 // 清空屏幕
@@ -94,6 +128,7 @@ void drawFailed(int textX, int failedX, String text){
   matrix.setCursor(failedX,6);
   matrix.setTextColor(matrix.Color(255, 0, 0));
   matrix.print("X");
+  matrix.setBrightness(brightness);
   matrix.show();
 }
 
@@ -103,6 +138,7 @@ void showIp(){
   matrix.setTextColor(mainColor);
   matrix.setCursor(showIpIndex, 6);
   matrix.print("192.168.1.1");
+  matrix.setBrightness(brightness);
   matrix.show();
   delay(100);
   showIpIndex--;
@@ -229,23 +265,27 @@ void drawBright(){
   matrix.setFont(&MyFont);
   matrix.fillScreen(0);
   matrix.setTextColor(mainColor);
-  // 亮度图标
-  matrix.drawFastVLine(13, 3, 2, mainColor);
-  matrix.drawPixel(14, 2, mainColor);
-  matrix.drawPixel(14, 5, mainColor);
-  matrix.drawPixel(15, 1, mainColor);
-  matrix.drawPixel(15, 6, mainColor);
-  matrix.drawFastVLine(16, 1, 6, mainColor);
-  matrix.drawFastVLine(17, 2, 4, mainColor);
-  matrix.drawFastVLine(18, 3, 2, mainColor);
-  // +=号
-  if(brightness > 5){
-    matrix.setCursor(3, 6);
-    matrix.print("-");
-  }
-  if(brightness < 145){
-    matrix.setCursor(26, 6);
-    matrix.print("+");
+  if(brightModel == BRIGHT_MODEL_MANUAL){
+    // 亮度图标
+    matrix.drawFastVLine(13, 3, 2, mainColor);
+    matrix.drawPixel(14, 2, mainColor);
+    matrix.drawPixel(14, 5, mainColor);
+    matrix.drawPixel(15, 1, mainColor);
+    matrix.drawPixel(15, 6, mainColor);
+    matrix.drawFastVLine(16, 1, 6, mainColor);
+    matrix.drawFastVLine(17, 2, 4, mainColor);
+    matrix.drawFastVLine(18, 3, 2, mainColor);
+    // +=号
+    if(brightness > 5){
+      matrix.setCursor(3, 6);
+      matrix.print("-");
+    }
+    if(brightness < 145){
+      matrix.setCursor(26, 6);
+      matrix.print("+");
+    }
+  }else{
+    drawText(7,6,"AUTO");
   }
   matrix.show();
 }
@@ -413,6 +453,7 @@ void drawAnim(){
       }
     }
   }
+  matrix.setBrightness(brightness);
   matrix.show();
   animTime = millis();
 }
@@ -439,45 +480,86 @@ void drawRHYTHM(){
   FFT.Compute(FFT_FORWARD);
   FFT.ComplexToMagnitude();
   // 解析计算结果
-  for (int i = 2; i < (SAMPLES/2); i++){
-    if (vReal[i] > NOISE) {
-      // Serial.println(vReal[i]);
-      // 去除前面6段低频杂音和一些高频尖叫
-      if (i>6    && i<=9   ) bandValues[0]   += (int)vReal[i];
-      if (i>9    && i<=11  ) bandValues[1]   += (int)vReal[i];
-      if (i>11   && i<=13  ) bandValues[2]   += (int)vReal[i];
-      if (i>13   && i<=15  ) bandValues[3]   += (int)vReal[i];
-      if (i>15   && i<=17  ) bandValues[4]   += (int)vReal[i];
-      if (i>17   && i<=19  ) bandValues[5]   += (int)vReal[i];
-      if (i>19   && i<=21  ) bandValues[6]   += (int)vReal[i];
-      if (i>21   && i<=23  ) bandValues[7]   += (int)vReal[i];
-      if (i>23   && i<=25  ) bandValues[8]   += (int)vReal[i];
-      if (i>25   && i<=27  ) bandValues[9]   += (int)vReal[i];
-      if (i>27   && i<=29  ) bandValues[10]  += (int)vReal[i];
-      if (i>29   && i<=31  ) bandValues[11]  += (int)vReal[i];
-      if (i>31   && i<=33  ) bandValues[12]  += (int)vReal[i];
-      if (i>33   && i<=35  ) bandValues[13]  += (int)vReal[i];
-      if (i>35   && i<=38  ) bandValues[14]  += (int)vReal[i];
-      if (i>38   && i<=41  ) bandValues[15]  += (int)vReal[i];
-      if (i>41   && i<=44  ) bandValues[16]  += (int)vReal[i];
-      if (i>44   && i<=47  ) bandValues[17]  += (int)vReal[i];
-      if (i>47   && i<=50  ) bandValues[18]  += (int)vReal[i];
-      if (i>50   && i<=53  ) bandValues[19]  += (int)vReal[i];
-      if (i>53   && i<=56  ) bandValues[20]  += (int)vReal[i];
-      if (i>56   && i<=59  ) bandValues[21]  += (int)vReal[i];
-      if (i>59   && i<=62  ) bandValues[22]  += (int)vReal[i];
-      if (i>62   && i<=65  ) bandValues[23]  += (int)vReal[i];
-      if (i>65   && i<=68  ) bandValues[24]  += (int)vReal[i];
-      if (i>68   && i<=71  ) bandValues[25]  += (int)vReal[i];
-      if (i>71   && i<=74  ) bandValues[26]  += (int)vReal[i];
-      if (i>74   && i<=77  ) bandValues[27]  += (int)vReal[i];
-      if (i>77   && i<=80  ) bandValues[28]  += (int)vReal[i];
-      if (i>80   && i<=83  ) bandValues[29]  += (int)vReal[i];
-      if (i>83   && i<=87  ) bandValues[30]  += (int)vReal[i];
-      if (i>87   && i<=91  ) bandValues[31]  += (int)vReal[i];
+  if(rhythmBandsModel == RHYTHM_BANDS_MODEL1){ // 左高频，右低频，32个频段
+    for (int i = 2; i < (SAMPLES/2); i++){
+      if (vReal[i] > NOISE) {
+        // Serial.println(vReal[i]);
+        // 去除前面6段低频杂音和一些高频尖叫
+        if (i>6    && i<=9   ) bandValues[0]   += (int)vReal[i];
+        if (i>9    && i<=11  ) bandValues[1]   += (int)vReal[i];
+        if (i>11   && i<=13  ) bandValues[2]   += (int)vReal[i];
+        if (i>13   && i<=15  ) bandValues[3]   += (int)vReal[i];
+        if (i>15   && i<=17  ) bandValues[4]   += (int)vReal[i];
+        if (i>17   && i<=19  ) bandValues[5]   += (int)vReal[i];
+        if (i>19   && i<=21  ) bandValues[6]   += (int)vReal[i];
+        if (i>21   && i<=23  ) bandValues[7]   += (int)vReal[i];
+        if (i>23   && i<=25  ) bandValues[8]   += (int)vReal[i];
+        if (i>25   && i<=27  ) bandValues[9]   += (int)vReal[i];
+        if (i>27   && i<=29  ) bandValues[10]  += (int)vReal[i];
+        if (i>29   && i<=31  ) bandValues[11]  += (int)vReal[i];
+        if (i>31   && i<=33  ) bandValues[12]  += (int)vReal[i];
+        if (i>33   && i<=35  ) bandValues[13]  += (int)vReal[i];
+        if (i>35   && i<=38  ) bandValues[14]  += (int)vReal[i];
+        if (i>38   && i<=41  ) bandValues[15]  += (int)vReal[i];
+        if (i>41   && i<=44  ) bandValues[16]  += (int)vReal[i];
+        if (i>44   && i<=47  ) bandValues[17]  += (int)vReal[i];
+        if (i>47   && i<=50  ) bandValues[18]  += (int)vReal[i];
+        if (i>50   && i<=53  ) bandValues[19]  += (int)vReal[i];
+        if (i>53   && i<=56  ) bandValues[20]  += (int)vReal[i];
+        if (i>56   && i<=59  ) bandValues[21]  += (int)vReal[i];
+        if (i>59   && i<=62  ) bandValues[22]  += (int)vReal[i];
+        if (i>62   && i<=65  ) bandValues[23]  += (int)vReal[i];
+        if (i>65   && i<=68  ) bandValues[24]  += (int)vReal[i];
+        if (i>68   && i<=71  ) bandValues[25]  += (int)vReal[i];
+        if (i>71   && i<=74  ) bandValues[26]  += (int)vReal[i];
+        if (i>74   && i<=77  ) bandValues[27]  += (int)vReal[i];
+        if (i>77   && i<=80  ) bandValues[28]  += (int)vReal[i];
+        if (i>80   && i<=83  ) bandValues[29]  += (int)vReal[i];
+        if (i>83   && i<=87  ) bandValues[30]  += (int)vReal[i];
+        if (i>87   && i<=91  ) bandValues[31]  += (int)vReal[i];
+      }
+    }
+  }else{
+     for (int i = 2; i < (SAMPLES/2); i++){
+      if (vReal[i] > NOISE) {
+        // Serial.println(vReal[i]);
+        // 去除前面6段低频杂音和一些高频尖叫
+        if (i>6    && i<=9   ) bandValues[15]   += (int)vReal[i];
+        if (i>9    && i<=11  ) bandValues[16]   += (int)vReal[i];
+        if (i>11   && i<=13  ) bandValues[14]   += (int)vReal[i];
+        if (i>13   && i<=15  ) bandValues[17]   += (int)vReal[i];
+        if (i>15   && i<=17  ) bandValues[13]   += (int)vReal[i];
+        if (i>17   && i<=19  ) bandValues[18]   += (int)vReal[i];
+        if (i>19   && i<=21  ) bandValues[12]   += (int)vReal[i];
+        if (i>21   && i<=23  ) bandValues[19]   += (int)vReal[i];
+        if (i>23   && i<=25  ) bandValues[11]   += (int)vReal[i];
+        if (i>25   && i<=27  ) bandValues[20]   += (int)vReal[i];
+        if (i>27   && i<=29  ) bandValues[10]  += (int)vReal[i];
+        if (i>29   && i<=31  ) bandValues[21]  += (int)vReal[i];
+        if (i>31   && i<=33  ) bandValues[9]  += (int)vReal[i];
+        if (i>33   && i<=35  ) bandValues[22]  += (int)vReal[i];
+        if (i>35   && i<=38  ) bandValues[8]  += (int)vReal[i];
+        if (i>38   && i<=41  ) bandValues[23]  += (int)vReal[i];
+        if (i>41   && i<=44  ) bandValues[7]  += (int)vReal[i];
+        if (i>44   && i<=47  ) bandValues[24]  += (int)vReal[i];
+        if (i>47   && i<=50  ) bandValues[6]  += (int)vReal[i];
+        if (i>50   && i<=53  ) bandValues[25]  += (int)vReal[i];
+        if (i>53   && i<=56  ) bandValues[5]  += (int)vReal[i];
+        if (i>56   && i<=59  ) bandValues[26]  += (int)vReal[i];
+        if (i>59   && i<=62  ) bandValues[4]  += (int)vReal[i];
+        if (i>62   && i<=65  ) bandValues[27]  += (int)vReal[i];
+        if (i>65   && i<=68  ) bandValues[3]  += (int)vReal[i];
+        if (i>68   && i<=71  ) bandValues[28]  += (int)vReal[i];
+        if (i>71   && i<=74  ) bandValues[2]  += (int)vReal[i];
+        if (i>74   && i<=77  ) bandValues[29]  += (int)vReal[i];
+        if (i>77   && i<=80  ) bandValues[1]  += (int)vReal[i];
+        if (i>80   && i<=83  ) bandValues[30]  += (int)vReal[i];
+        if (i>83   && i<=87  ) bandValues[0]  += (int)vReal[i];
+        if (i>87   && i<=91  ) bandValues[31]  += (int)vReal[i];
+      }
     }
   }
-  // 将FFT数据处理为条形高度  
+  // 将FFT数据处理为条形高度
   int color = 0;
   int r, g, b;
   for (byte band = 0; band < NUM_BANDS; band++) {
@@ -529,7 +611,7 @@ void drawRHYTHM(){
     }   
     // 将值记录到oldBarHeights
     oldBarHeights[band] = barHeight;
-  }
+  }  
   // 70毫秒降低一次顶点
   if((millis() - peekDecayTime) >= 70){
     for (byte band = 0; band < NUM_BANDS; band++){
@@ -543,6 +625,7 @@ void drawRHYTHM(){
     colorTime++;
     changeColorTime = millis();
   }
+  matrix.setBrightness(brightness);
   matrix.show();
 }
 
@@ -639,6 +722,6 @@ void drawClock(){
     matrix.setTextColor(matrix.Color(255, 0, 0));
     matrix.print("X");  
   } 
+  matrix.setBrightness(brightness);
   matrix.show();
 }
-

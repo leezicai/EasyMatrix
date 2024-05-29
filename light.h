@@ -11,7 +11,13 @@ extern Adafruit_NeoMatrix matrix;
 extern int timePage;
 extern int rhythmPage;
 extern int animPage;
+extern int rhythmBandsModel;
+extern int brightModel;
+extern int brightSamplingTime;
+extern int brightSamplingValue;
 extern int matrixArray[8][32];
+extern byte peak[];
+extern int oldBarHeights[];
 extern int lightedCount;
 extern int clockH;
 extern int clockM;
@@ -34,6 +40,8 @@ void drawAnim();
 void drawRHYTHM();
 void resetTmpClockData();
 void drawClock();
+void calculateBrightnessValue();
+void clearBrightSampling();
 
 #endif
 

@@ -6,19 +6,22 @@
 #include "task.h"
 
 /**
-EasyMatrix像素时钟  版本1.2
+EasyMatrix像素时钟  版本1.3
 
 本次更新内容：
 
-1.因为很多小伙伴觉得晚上的时候20亮度也有点亮，所以这个版本将亮度从20-160调整为5-145。
-2.默认亮度从60调整为45。
-3.修复了到达最大亮度，但是"+"号依然存在的BUG。
-4.更新了Myfont文件，重新制作了英文字母的字体。(需按照视频步骤重新覆盖到GFX库的fonts文件夹)
+1.音乐频谱灯本来只有左高频，右低频一种亮灯模式，新版本增加了中间低频，两边高频的模式。
+在节奏灯页面，长按按键 1，可以在两种模式之间切换。
+2.亮度调节在这个版本支持两种方式，手动调节和自动调节。
+在亮度页面，长按按键1，就可以在两种模式之间切换。电路接线图在1.3版本的更新视频简介中。
+3.由于节奏灯页面的按键 1 长按功能被切换模式占用，所以1.3版本中只能在时钟页面和动画页面长按按键 1，才能重新配网。
 
-注意：烧录前请将 Erase All Flash 选项选为 Enable，烧录完再重新配置网络，否则程序会有错误。
+
+注意：烧录前请将 Erase All Flash 选项选为 Enable，烧录完再重新配置网络，否则程序可能会有错误。
 */
 
 unsigned int prevDisplay = 0;
+unsigned long prevSampling = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -64,6 +67,15 @@ void setup() {
 
 void loop() { 
   watchBtn();
+  if(brightModel == BRIGHT_MODEL_AUTO && ((millis() - prevSampling) >= 1000 || prevSampling > millis())){
+    brightSamplingValue+=analogRead(LIGHT_ADC);
+    brightSamplingTime++;
+    prevSampling = millis();
+    if(brightSamplingTime >= BRIGHT_SAMPLING_TIMES){ // 每轮采样N次重新计算一次亮度值
+      calculateBrightnessValue();
+      clearBrightSampling();
+    }
+  }
   if(isCheckingTime){ // 对时中
     bool stopAnim = false; // 记录是否中断了动画
     Serial.println("开始对时");
@@ -120,8 +132,10 @@ void loop() {
         drawAnim();
         break;
       case CLOCK: // 闹钟设置页面
+        drawClock();
         break;
       case BRIGHT: // 亮度调节页面
+        drawBright();
         break;  
       default:
         break;

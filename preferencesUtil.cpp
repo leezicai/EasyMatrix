@@ -17,6 +17,8 @@ void getInfos(){
   timePage = prefs.getInt("timePage",TIME_H_M_S);
   rhythmPage = prefs.getInt("rhythmPage",RHYTHM_MODEL1);
   animPage = prefs.getInt("animPage",ANIM_MODEL1);
+  rhythmBandsModel = prefs.getInt("bandsModel",RHYTHM_BANDS_MODEL1);
+  brightModel = prefs.getInt("brightModel",BRIGHT_MODEL_MANUAL);
   clockH = prefs.getInt("clockH",0);
   clockM = prefs.getInt("clockM",0);
   clockBellNum = prefs.getInt("clockBellNum",0);
@@ -71,6 +73,13 @@ void recordBrightness(){
   prefs.end();
 }
 
+// 获取亮度
+void getBrightness(){
+  prefs.begin("matrix");
+  brightness = prefs.getInt("brightness", BRIGHTNESS);
+  prefs.end();
+}
+
 // 写入启动时是否需要配网的标志位
 void setApConfigWhenStart(bool apConfig){
   prefs.begin("matrix");
@@ -78,12 +87,14 @@ void setApConfigWhenStart(bool apConfig){
   prefs.end();
 }
 
-// 写入三个页面下的小页面
+// 写入小页面和其他页面模式
 void recordExtensionPage(){
   prefs.begin("matrix");
   prefs.putInt("timePage", timePage);
   prefs.putInt("rhythmPage", rhythmPage);
   prefs.putInt("animPage", animPage);
+  prefs.putInt("bandsModel", rhythmBandsModel);
+  prefs.putInt("brightModel", brightModel);
   prefs.end();
 }
 
