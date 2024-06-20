@@ -6,21 +6,20 @@
 #include "task.h"
 
 /**
-EasyMatrix像素时钟  版本1.3
+EasyMatrix像素时钟  版本1.4
 
 本次更新内容：
 
-1.音乐频谱灯本来只有左高频，右低频一种亮灯模式，新版本增加了中间低频，两边高频的模式。
-在节奏灯页面，长按按键 1，可以在两种模式之间切换。
-2.亮度调节在这个版本支持两种方式，手动调节和自动调节。
-在亮度页面，长按按键1，就可以在两种模式之间切换。电路接线图在1.3版本的更新视频简介中。
-3.由于节奏灯页面的按键 1 长按功能被切换模式占用，所以1.3版本中只能在时钟页面和动画页面长按按键 1，才能重新配网。
-
+1.在之前的节奏灯页面中，外界音量大到一定程度时，会发生好几个频段同时冲顶的情况，观赏性大打折扣。
+在这个版本中，我优化了算法，系统会动态调整柱状条的高度。
+2.增加了时间滑动动画，时间变化不再是呆板的直接跳变。时间显示页面长按按键1可在两种时间跳变模式之间切换。
+3.重新绘制了海豚动画，并优化重构了海豚动画的显示逻辑。
+4.由于时间页面的按键1长按功能被使用，现在只能在动画页面长按按键1才可以重新配置网络和颜色。
 
 注意：烧录前请将 Erase All Flash 选项选为 Enable，烧录完再重新配置网络，否则程序可能会有错误。
 */
 
-unsigned int prevDisplay = 0;
+unsigned long prevDisplay = 0;
 unsigned long prevSampling = 0;
 
 void setup() {
@@ -77,14 +76,8 @@ void loop() {
     }
   }
   if(isCheckingTime){ // 对时中
-    bool stopAnim = false; // 记录是否中断了动画
     Serial.println("开始对时");
     long start = millis(); // 记录开始对时的时间
-    // 停止动画
-    if(tickerAnim.active()){
-      tickerAnim.detach();
-      stopAnim = true;
-    }
     // 绘制对时提示文字
     drawCheckTimeText();
     // 执行对时逻辑
@@ -94,10 +87,6 @@ void loop() {
     // 让整个对时过程持续超过4秒，不然时间太短，提示文字一闪而过，让人感觉鬼畜了
     while((millis() - start) < 4000){
       delay(200);
-    }
-    // 如果中断了动画，则重新开始动画
-    if(stopAnim){
-      startTickerAnim();
     }
     // 清屏
     clearMatrix();
@@ -116,13 +105,11 @@ void loop() {
       case SETTING:  // 配置页面
         doClient(); // 监听客户端配网请求
         break;
-      case TIME: // 时钟页面
-        time_t now;
-        time(&now);
-        if(now != prevDisplay){ // 每秒更新一次时间显示
-          prevDisplay = now;
+      case TIME: // 时钟页面       
+        if((millis() - prevDisplay) >= 50 || prevDisplay > millis()){
           // 绘制时间
           drawTime();
+          prevDisplay = millis();
         }
         break;
       case RHYTHM: // 节奏灯页面

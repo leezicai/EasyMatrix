@@ -7,7 +7,6 @@
 #include "preferencesUtil.h"
 
 enum CurrentPage currentPage = SETTING;
-int animIndex = 0; // 时钟页面动画索引
 bool playingMusic = false; // 是否正在播放音乐
 bool belling = false; // 是否正在播放铃声
 bool isCheckingTime = false; // 是否正在NTP对时中
@@ -109,54 +108,10 @@ void startPlayBell(void *param){
 ///////////////////////////////////定时器区域///////////////////////////////////////
 Ticker tickerClock;
 Ticker tickerCheckTime;
-Ticker tickerAnim;
 // NTP对时
 void checkTime(){
   // 只要将对时标志置为true即可，在主循环中进行对时操作
   isCheckingTime = true;
-}
-// 时钟页面显示动画
-void showAnim(){
-  switch(animIndex){
-      case 0:
-        matrix.drawRGBBitmap(0,0,timeAnim0,11,8);
-        break;
-      case 1:
-        matrix.drawRGBBitmap(0,0,timeAnim1,11,8);
-        break;
-      case 2:
-        matrix.drawRGBBitmap(0,0,timeAnim2,11,8);
-        break;
-      case 3:
-        matrix.drawRGBBitmap(0,0,timeAnim3,11,8);
-        break;
-      case 4:
-        matrix.drawRGBBitmap(0,0,timeAnim4,11,8);
-        break;
-      case 5:
-        matrix.drawRGBBitmap(0,0,timeAnim5,11,8);
-        break;
-      case 6:
-        matrix.drawRGBBitmap(0,0,timeAnim6,11,8);
-        break;
-      case 7:
-        matrix.drawRGBBitmap(0,0,timeAnim7,11,8);
-        break;
-      case 8:
-        matrix.drawRGBBitmap(0,0,timeAnim8,11,8);
-        break;
-      case 9:
-        matrix.drawRGBBitmap(0,0,timeAnim0,11,8);
-        break;  
-      default:
-        animIndex = 9;
-        break;
-    }
-    matrix.show();
-    animIndex++;
-    if(animIndex == 10){
-      animIndex = 0;
-    } 
 }
 // 根据NVS中的闹钟时间计算出定时器需要多久之后触发
 int32_t getClockRemainSeconds(){
@@ -188,6 +143,7 @@ void ringingBell() {
     lightedCount = 0;
   }
   currentPage = TIME;
+  drawTimeFirstTime = true;
   // 创建播放音乐的任务
   createBellTask();
   belling = true;
@@ -199,10 +155,6 @@ void ringingBell() {
 void startTickerClock(int32_t seconds){
   // seconds秒后，执行一次
   tickerClock.once(seconds, ringingBell);
-}
-void startTickerAnim(){
-  // 每隔一段时间播放一帧动画
-  tickerAnim.attach_ms(ANIM_INTERVAL, showAnim);
 }
 void startTickerCheckTime(){
   // 每隔一段时间进行一次NTP对时
@@ -253,7 +205,6 @@ void btn1click(){
       }else if(timePage == TIME_H_M){
         timePage = TIME_DATE;
       }else{
-        tickerAnim.detach();
         timePage = TIME_H_M_S;
       }
       // 清屏
@@ -261,6 +212,7 @@ void btn1click(){
       // 保存设置
       recordExtensionPage();
       // 绘制时间
+      drawTimeFirstTime = true;
       drawTime();
       break;
     case RHYTHM:
@@ -347,7 +299,6 @@ void btn2click(){
       if(timePage == TIME_H_M_S){
         timePage = TIME_DATE;
       }else if(timePage == TIME_H_M){
-        tickerAnim.detach();
         timePage = TIME_H_M_S;
       }else{
         timePage = TIME_H_M;
@@ -357,6 +308,7 @@ void btn2click(){
       // 保存设置
       recordExtensionPage();
       // 绘制时间
+      drawTimeFirstTime = true;
       drawTime();
       break;
     case RHYTHM:
@@ -450,7 +402,8 @@ void btn3click(){
         currentPage = RHYTHM;
       }else{  //有配置过，尝试进行连接
         // 将页面置为时间页面
-        currentPage = TIME; 
+        currentPage = TIME;
+        drawTimeFirstTime = true; 
         // 将重新配网标志位置为false
         setApConfigWhenStart(false);
         // 连接WiFi,30秒超时后显示wifi连接失败的图案
@@ -462,10 +415,6 @@ void btn3click(){
       }
       break;
     case TIME:
-      // 关闭动画
-      if(tickerAnim.active()){
-        tickerAnim.detach();
-      }
       // 清屏
       clearMatrix();
       currentPage = RHYTHM;
@@ -517,6 +466,7 @@ void btn3click(){
         currentPage = RHYTHM;
       }else{
         currentPage = TIME;
+        drawTimeFirstTime = true;
       }
       break; 
     default:
@@ -624,6 +574,16 @@ void btn3LongClick(){
     getBrightness();
     // 刷新页面
     drawBright();
+  }else if(currentPage == TIME){ // 时间页面长按，切换时间跳变模式
+    if(timeModel == TIME_MODEL_DIRECT){
+      timeModel = TIME_MODEL_ANIM;
+    }else{
+      timeModel = TIME_MODEL_DIRECT;
+    }
+    // 保存新模式
+    recordExtensionPage();
+    // 重置时间动画索引
+    timeIndex = 0;
   }else{ // 其他页面长按，重启并配网
     Serial.println("重启并配网");
     setApConfigWhenStart(true);

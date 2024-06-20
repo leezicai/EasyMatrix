@@ -38,7 +38,6 @@
 #define NOISE                 1770   //噪音
 #define BAR_WIDTH             1 //每个频段的宽度
 #define ONE_DAY_SECONDS       24 * 60 * 60 // 一天的秒数
-#define ANIM_INTERVAL         200 // 时钟页面每帧动画间隔（ms）
 #define TIME_CHECK_INTERVAL   18000 // NTP对时间隔（s）, 18000秒即为5小时
 #define BRIGHT_SAMPLING_TIMES 1 // 每轮亮度采样次数
 
@@ -65,6 +64,9 @@ const int CLOCK_BELL = 3;
 // 亮度模式
 const int BRIGHT_MODEL_MANUAL = 1;
 const int BRIGHT_MODEL_AUTO = 2;
+// 时间跳变模式
+const int TIME_MODEL_DIRECT = 1;
+const int TIME_MODEL_ANIM = 2;
 
 // 定义页面枚举 SETTING-配网页面  TIME-时间页面  RHYTHM-节奏灯页面  ANIM-动画页面  CLOCK-闹钟设置页面  BRIGHT-亮度调节
 enum CurrentPage{

@@ -14,6 +14,12 @@ uint16_t weekColor;
 int brightness;
 int showIpIndex = MATRIX_SIDE * 4;
 int weekChromatism = 50; // 绘制星期时的色差基础值
+// 时钟页面
+bool drawTimeFirstTime = true; // 直接显示时间
+int hour,minu,sec; // 之前显示的时、分、秒的数值
+int timeIndex = 0; // 滑动动画帧数指针
+int animIndex = 0; // 时钟页面动画索引
+int timeModel; // 时间跳变模式
 // 闹钟页面
 bool clockOpen; // 闹钟是否开启
 int clockH,clockM,clockBellNum; // 闹钟时、分、闹铃编号
@@ -43,8 +49,10 @@ unsigned int sampling_period_us; //采样周期
 byte peak[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int oldBarHeights[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int bandValues[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int bandIndex[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 double vReal[SAMPLES];
 double vImag[SAMPLES];
+int maxBandValue;
 unsigned long starTime;
 unsigned long peekDecayTime;
 unsigned long changeColorTime;
@@ -67,7 +75,7 @@ void clearBrightSampling(){
 void calculateBrightnessValue(){
   int val = brightSamplingValue / brightSamplingTime; // 三次采样平均值
   // Serial.println(val);
-  brightness = map(val, 0, 4095, 0, 65);
+  brightness = map(val, 0, 4095, 1, 65);
   // if(val >= 3000){
   //   brightness = 65;
   // }else if(val >= 2000){
@@ -161,28 +169,112 @@ void drawTime(){
   if(timePage == TIME_H_M_S){
     // 清屏
     matrix.fillScreen(0);
-    // 绘制时间
-    matrix.setCursor(2, 5);
-    String h;
-    if(timeinfo.tm_hour < 10){
-      h = "0" + String(timeinfo.tm_hour);
-    }else{
-      h = String(timeinfo.tm_hour);
+    // 绘制时
+    if(timeModel == TIME_MODEL_DIRECT || drawTimeFirstTime || hour == timeinfo.tm_hour){
+      matrix.setCursor(2, 5);
+      String h;
+      if(timeinfo.tm_hour < 10){
+        h = "0" + String(timeinfo.tm_hour);
+      }else{
+        h = String(timeinfo.tm_hour);
+      }
+      matrix.print(h);
+    }else if(hour != timeinfo.tm_hour){
+      if(hour / 10 != timeinfo.tm_hour / 10){ // 时进位了，两个数字都要动画刷新
+        matrix.setCursor(2, 6 + timeIndex);
+        if(hour < 10){
+          matrix.print("0" + String(hour));
+        }else{
+          matrix.print(String(hour));
+        }
+        matrix.setCursor(2, 0 + timeIndex);
+        if(timeinfo.tm_hour < 10){
+          matrix.print("0" + String(timeinfo.tm_hour));
+        }else{
+          matrix.print(String(timeinfo.tm_hour));
+        }
+      }else{ // 只需刷新个位数
+        matrix.setCursor(2, 5);
+        matrix.print(String(hour / 10));
+        matrix.setCursor(6, 6 + timeIndex);
+        matrix.print(String(hour % 10));
+        matrix.setCursor(6, 0 + timeIndex);
+        matrix.print(String(timeinfo.tm_hour % 10));
+      }
     }
-    String m;
-    if(timeinfo.tm_min < 10){
-      m = "0" + String(timeinfo.tm_min);
-    }else{
-      m = String(timeinfo.tm_min);
+    // 绘制分
+    if(timeModel == TIME_MODEL_DIRECT || drawTimeFirstTime || minu == timeinfo.tm_min){
+      matrix.setCursor(12, 5);
+      String m;
+      if(timeinfo.tm_min < 10){
+        m = "0" + String(timeinfo.tm_min);
+      }else{
+        m = String(timeinfo.tm_min);
+      }
+      matrix.print(m);
+    }else if(minu != timeinfo.tm_min){
+      if(minu / 10 != timeinfo.tm_min / 10){ // 分进位了，两个数字都要动画刷新
+        matrix.setCursor(12, 6 + timeIndex);
+        if(minu < 10){
+          matrix.print("0" + String(minu));
+        }else{
+          matrix.print(String(minu));
+        }
+        matrix.setCursor(12, 0 + timeIndex);
+        if(timeinfo.tm_min < 10){
+          matrix.print("0" + String(timeinfo.tm_min));
+        }else{
+          matrix.print(String(timeinfo.tm_min));
+        }
+      }else{ // 只需刷新个位数
+        matrix.setCursor(12, 5);
+        matrix.print(String(minu / 10));
+        matrix.setCursor(16, 6 + timeIndex);
+        matrix.print(String(minu % 10));
+        matrix.setCursor(16, 0 + timeIndex);
+        matrix.print(String(timeinfo.tm_min % 10));
+      }
     }
-    String s;
-    if(timeinfo.tm_sec < 10){
-      s = "0" + String(timeinfo.tm_sec);
-    }else{
-      s = String(timeinfo.tm_sec);
+    // 绘制秒
+    if(timeModel == TIME_MODEL_DIRECT || drawTimeFirstTime || sec == timeinfo.tm_sec){
+      matrix.setCursor(22, 5);
+      String s;
+      if(timeinfo.tm_sec < 10){
+        s = "0" + String(timeinfo.tm_sec);
+      }else{
+        s = String(timeinfo.tm_sec);
+      }
+      matrix.print(s);
+    }else if(sec != timeinfo.tm_sec){
+      if(sec / 10 != timeinfo.tm_sec / 10){ // 秒进位了，两个数字都要动画刷新
+        matrix.setCursor(22, 6 + timeIndex);
+        if(sec < 10){
+          matrix.print("0" + String(sec));
+        }else{
+          matrix.print(String(sec));
+        }
+        matrix.setCursor(22, 0 + timeIndex);
+        if(timeinfo.tm_sec < 10){
+          matrix.print("0" + String(timeinfo.tm_sec));
+        }else{
+          matrix.print(String(timeinfo.tm_sec));
+        }
+      }else{ // 只需刷新个位数
+        matrix.setCursor(22, 5);
+        matrix.print(String(sec / 10));
+        matrix.setCursor(26, 6 + timeIndex);
+        matrix.print(String(sec % 10));
+        matrix.setCursor(26, 0 + timeIndex);
+        matrix.print(String(timeinfo.tm_sec % 10));
+      }
     }
-    matrix.print(h + ":" + m + ":" + s);
+    // 绘制两个冒号
+    matrix.setCursor(10, 5);
+    matrix.print(":");
+    matrix.setCursor(20, 5);
+    matrix.print(":");
     // 绘制星期
+    matrix.fillRect(0, 7, 31, 7, 0);
     int weekNum = timeinfo.tm_wday;
     if(weekNum == 0){
       weekNum = 7;
@@ -196,27 +288,128 @@ void drawTime(){
     }
     matrix.drawFastHLine(2 + (weekNum - 1) * 4, 7, 3, mainColor);
   }else if(timePage == TIME_H_M){
-    if(!tickerAnim.active()){
-      startTickerAnim();
+    // 清屏
+    matrix.fillScreen(0);
+    switch(animIndex){
+      case 0:
+      case 1:
+        matrix.drawRGBBitmap(0,0,timeAnim0,11,8);
+        break;
+      case 2:
+      case 3:
+        matrix.drawRGBBitmap(0,0,timeAnim1,11,8);
+        break;
+      case 4:
+      case 5:
+        matrix.drawRGBBitmap(0,0,timeAnim2,11,8);
+        break;
+      case 6:
+      case 7:
+        matrix.drawRGBBitmap(0,0,timeAnim3,11,8);
+        break;
+      case 8:
+      case 9:
+        matrix.drawRGBBitmap(0,0,timeAnim4,11,8);
+        break;
+      case 10:
+      case 11:
+        matrix.drawRGBBitmap(0,0,timeAnim5,11,8);
+        break;
+      case 12:
+      case 13:
+        matrix.drawRGBBitmap(0,0,timeAnim6,11,8);
+        break;
+      case 14:
+      case 15:
+        matrix.drawRGBBitmap(0,0,timeAnim7,11,8);
+        break;
+      case 16:
+      case 17:
+        matrix.drawRGBBitmap(0,0,timeAnim8,11,8);
+        break;
+      case 18:
+      case 19:
+        matrix.drawRGBBitmap(0,0,timeAnim0,11,8);
+        break;  
+      default:
+        animIndex = 9;
+        break;
     }
-    // 将除了动画的其他地方都清空
-    matrix.fillRect(12, 0, 19, 8, 0);
-    // 写入时间
-    matrix.setCursor(14, 5);
-    String h;
-    if(timeinfo.tm_hour < 10){
-      h = "0" + String(timeinfo.tm_hour);
-    }else{
-      h = String(timeinfo.tm_hour);
+    animIndex++;
+    if(animIndex == 20){
+      animIndex = 0;
+    } 
+    // 绘制时
+    if(timeModel == TIME_MODEL_DIRECT || drawTimeFirstTime || hour == timeinfo.tm_hour){
+      matrix.setCursor(14, 5);
+      String h;
+      if(timeinfo.tm_hour < 10){
+        h = "0" + String(timeinfo.tm_hour);
+      }else{
+        h = String(timeinfo.tm_hour);
+      }
+      matrix.print(h);
+    }else if(hour != timeinfo.tm_hour){
+      if(hour / 10 != timeinfo.tm_hour / 10){ // 时进位了，两个数字都要动画刷新
+        matrix.setCursor(14, 6 + timeIndex);
+        if(hour < 10){
+          matrix.print("0" + String(hour));
+        }else{
+          matrix.print(String(hour));
+        }
+        matrix.setCursor(14, 0 + timeIndex);
+        if(timeinfo.tm_hour < 10){
+          matrix.print("0" + String(timeinfo.tm_hour));
+        }else{
+          matrix.print(String(timeinfo.tm_hour));
+        }
+      }else{ // 只需刷新个位数
+        matrix.setCursor(14, 5);
+        matrix.print(String(hour / 10));
+        matrix.setCursor(18, 6 + timeIndex);
+        matrix.print(String(hour % 10));
+        matrix.setCursor(18, 0 + timeIndex);
+        matrix.print(String(timeinfo.tm_hour % 10));
+      }
     }
-    String m;
-    if(timeinfo.tm_min < 10){
-      m = "0" + String(timeinfo.tm_min);
-    }else{
-      m = String(timeinfo.tm_min);
+    // 绘制分
+    if(timeModel == TIME_MODEL_DIRECT || drawTimeFirstTime || minu == timeinfo.tm_min){
+      matrix.setCursor(24, 5);
+      String m;
+      if(timeinfo.tm_min < 10){
+        m = "0" + String(timeinfo.tm_min);
+      }else{
+        m = String(timeinfo.tm_min);
+      }
+      matrix.print(m);
+    }else if(minu != timeinfo.tm_min){
+      if(minu / 10 != timeinfo.tm_min / 10){ // 分进位了，两个数字都要动画刷新
+        matrix.setCursor(24, 6 + timeIndex);
+        if(minu < 10){
+          matrix.print("0" + String(minu));
+        }else{
+          matrix.print(String(minu));
+        }
+        matrix.setCursor(24, 0 + timeIndex);
+        if(timeinfo.tm_min < 10){
+          matrix.print("0" + String(timeinfo.tm_min));
+        }else{
+          matrix.print(String(timeinfo.tm_min));
+        }
+      }else{ // 只需刷新个位数
+        matrix.setCursor(24, 5);
+        matrix.print(String(minu / 10));
+        matrix.setCursor(28, 6 + timeIndex);
+        matrix.print(String(minu % 10));
+        matrix.setCursor(28, 0 + timeIndex);
+        matrix.print(String(timeinfo.tm_min % 10));
+      }
     }
-    matrix.print(h + ":" + m);
+    // 绘制冒号
+    matrix.setCursor(22, 5);
+    matrix.print(":");
     // 绘制星期
+    matrix.fillRect(12, 7, 31, 7, 0);
     int weekNum = timeinfo.tm_wday;
     if(weekNum == 0){
       weekNum = 7;
@@ -230,11 +423,57 @@ void drawTime(){
     }
     matrix.drawFastHLine(12 + (weekNum - 1) * 3, 7, 2, mainColor);
   }else if(timePage == TIME_DATE){
-    if(!tickerAnim.active()){
-      startTickerAnim();
+    // 清屏
+    matrix.fillScreen(0);
+    switch(animIndex){
+      case 0:
+      case 1:
+        matrix.drawRGBBitmap(0,0,timeAnim0,11,8);
+        break;
+      case 2:
+      case 3:
+        matrix.drawRGBBitmap(0,0,timeAnim1,11,8);
+        break;
+      case 4:
+      case 5:
+        matrix.drawRGBBitmap(0,0,timeAnim2,11,8);
+        break;
+      case 6:
+      case 7:
+        matrix.drawRGBBitmap(0,0,timeAnim3,11,8);
+        break;
+      case 8:
+      case 9:
+        matrix.drawRGBBitmap(0,0,timeAnim4,11,8);
+        break;
+      case 10:
+      case 11:
+        matrix.drawRGBBitmap(0,0,timeAnim5,11,8);
+        break;
+      case 12:
+      case 13:
+        matrix.drawRGBBitmap(0,0,timeAnim6,11,8);
+        break;
+      case 14:
+      case 15:
+        matrix.drawRGBBitmap(0,0,timeAnim7,11,8);
+        break;
+      case 16:
+      case 17:
+        matrix.drawRGBBitmap(0,0,timeAnim8,11,8);
+        break;
+      case 18:
+      case 19:
+        matrix.drawRGBBitmap(0,0,timeAnim0,11,8);
+        break;  
+      default:
+        animIndex = 9;
+        break;
     }
-    // 将除了动画的其他地方都清空
-    matrix.fillRect(12, 0, 19, 8, 0);
+    animIndex++;
+    if(animIndex == 20){
+      animIndex = 0;
+    } 
     // 写入日期
     matrix.setCursor(12, 5);
     String month = timeinfo.tm_mon < 9 ? "0" : "";
@@ -256,6 +495,20 @@ void drawTime(){
     }
     matrix.drawFastHLine(12 + (weekNum - 1) * 3, 7, 2, mainColor);
   }
+  if(drawTimeFirstTime){
+    drawTimeFirstTime = false;
+    hour = timeinfo.tm_hour;
+    minu = timeinfo.tm_min;
+    sec = timeinfo.tm_sec;
+  }else if(sec != timeinfo.tm_sec){
+    timeIndex++;
+    if(timeIndex == 6){
+      timeIndex = 0;
+      hour = timeinfo.tm_hour;
+      minu = timeinfo.tm_min;
+      sec = timeinfo.tm_sec;
+    }
+  } 
   matrix.show();
 }
 
@@ -559,12 +812,29 @@ void drawRHYTHM(){
       }
     }
   }
+  // 寻找bandValues最大值并根据最大值计算倍率
+  maxBandValue = 0;
+  for(int i = 0; i < NUM_BANDS; i++){
+    if(bandValues[i] > maxBandValue){
+      maxBandValue = bandValues[i];
+    }
+    if(bandValues[i] > MATRIX_SIDE * AMPLITUDE){
+      bandIndex[i] = 1;
+    }else{
+      bandIndex[i] = 0;
+    }
+  }
   // 将FFT数据处理为条形高度
   int color = 0;
   int r, g, b;
   for (byte band = 0; band < NUM_BANDS; band++) {
     // 根据倍率缩放条形图高度
-    int barHeight = bandValues[band] / AMPLITUDE;
+    int barHeight;
+    if(bandIndex[band] == 1){
+      barHeight = (MATRIX_SIDE * bandValues[band]) / maxBandValue;
+    }else{
+      barHeight = bandValues[band] / AMPLITUDE;
+    } 
     if (barHeight > MATRIX_SIDE) barHeight = MATRIX_SIDE;
     // 旧的高度值和新的高度值平均一下
     barHeight = ((oldBarHeights[band] * 1) + barHeight) / 2;

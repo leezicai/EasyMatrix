@@ -17,10 +17,8 @@ void btnInit();
 int32_t getClockRemainSeconds();
 extern Ticker tickerClock;
 extern Ticker tickerCheckTime;
-extern Ticker tickerAnim;
 extern bool isCheckingTime;
 void startTickerClock(int32_t seconds);
-void startTickerAnim();
 void startTickerCheckTime();
 
 #endif

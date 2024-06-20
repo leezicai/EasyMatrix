@@ -19,6 +19,7 @@ void getInfos(){
   animPage = prefs.getInt("animPage",ANIM_MODEL1);
   rhythmBandsModel = prefs.getInt("bandsModel",RHYTHM_BANDS_MODEL1);
   brightModel = prefs.getInt("brightModel",BRIGHT_MODEL_MANUAL);
+  timeModel = prefs.getInt("timeModel",TIME_MODEL_ANIM);
   clockH = prefs.getInt("clockH",0);
   clockM = prefs.getInt("clockM",0);
   clockBellNum = prefs.getInt("clockBellNum",0);
@@ -95,6 +96,7 @@ void recordExtensionPage(){
   prefs.putInt("animPage", animPage);
   prefs.putInt("bandsModel", rhythmBandsModel);
   prefs.putInt("brightModel", brightModel);
+  prefs.putInt("timeModel", timeModel);
   prefs.end();
 }
 
