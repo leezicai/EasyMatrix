@@ -7,10 +7,6 @@
 
 ### 提供成品, 整套元件也可购买.
 
-**[淘宝链接](https://m.tb.cn/h.gg8fSYRKT2kZHZ3?tk=H1gYWzUQEZc)**
-
-**[闲鱼链接](https://m.tb.cn/h.g5a3qe0?tk=7VEMWzUQ7Sc)**
-
-### 已支持电源灯和像素灯 同在亮度自动模式下受控制, 做到黑暗时全部熄灭.
+**[闲鱼链接](https://m.tb.cn/h.TdTzwYh?tk=G1DX3FYHiQR)**
 
 
